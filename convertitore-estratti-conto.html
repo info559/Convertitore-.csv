@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Convertitore Estratti Conto - PDF to CSV</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        :root {
+            --primary: #407db6;
+            --secondary: #bcd036;
+            --accent: #efd656;
+            --dark: #2c3e50;
+            --light: #f8f9fa;
+            --white: #ffffff;
+            --gray: #6c757d;
+            --light-gray: #e9ecef;
+            --success: #28a745;
+            --danger: #dc3545;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--light) 0%, #e8f4f8 100%);
+            min-height: 100vh;
+            color: var(--dark);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(135deg, var(--primary) 0%, #2d5a8a 100%);
+            color: var(--white);
+            padding: 30px 0;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        header .container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .logo-section h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .logo-section p {
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+
+        .header-accent {
+            width: 60px;
+            height: 4px;
+            background: var(--accent);
+            border-radius: 2px;
+            margin-top: 10px;
+        }
+
+        /* Upload Area */
+        .upload-section {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 40px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border-top: 4px solid var(--secondary);
+        }
+
+        .upload-area {
+            border: 2px dashed var(--primary);
+            border-radius: 12px;
+            padding: 50px 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, rgba(64,125,182,0.03) 0%, rgba(188,208,54,0.03) 100%);
+        }
+
+        .upload-area:hover {
+            border-color: var(--secondary);
+            background: linear-gradient(135deg, rgba(64,125,182,0.08) 0%, rgba(188,208,54,0.08) 100%);
+        }
+
+        .upload-area.dragover {
+            border-color: var(--secondary);
+            background: rgba(188,208,54,0.15);
+        }
+
+        .upload-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .upload-icon svg {
+            width: 40px;
+            height: 40px;
+            stroke: var(--white);
+        }
+
+        .upload-area h3 {
+            color: var(--dark);
+            margin-bottom: 10px;
+            font-size: 1.3rem;
+        }
+
+        .upload-area p {
+            color: var(--gray);
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, #2d5a8a 100%);
+            color: var(--white);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(64,125,182,0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--secondary) 0%, #9ab82d 100%);
+            color: var(--dark);
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(188,208,54,0.4);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-outline:hover {
+            background: var(--primary);
+            color: var(--white);
+        }
+
+        .btn-sm {
+            padding: 6px 14px;
+            font-size: 0.85rem;
+        }
+
+        .btn-icon {
+            padding: 8px;
+            border-radius: 6px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-icon:hover {
+            background: var(--light-gray);
+        }
+
+        .btn-icon.edit:hover { color: var(--primary); }
+        .btn-icon.delete:hover { color: var(--danger); }
+        .btn-icon.save:hover { color: var(--success); }
+
+        #fileInput {
+            display: none;
+        }
+
+        .file-info {
+            margin-top: 20px;
+            padding: 15px 20px;
+            background: var(--light);
+            border-radius: 8px;
+            display: none;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .file-info.show {
+            display: flex;
+        }
+
+        .file-info svg {
+            width: 24px;
+            height: 24px;
+            stroke: var(--primary);
+        }
+
+        .file-info span {
+            font-weight: 500;
+            color: var(--dark);
+        }
+
+        /* Loading */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--light-gray);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Results Section */
+        .results-section {
+            display: none;
+            background: var(--white);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            margin-bottom: 30px;
+        }
+
+        .results-section.show {
+            display: block;
+        }
+
+        .results-header {
+            background: linear-gradient(135deg, var(--primary) 0%, #2d5a8a 100%);
+            color: var(--white);
+            padding: 20px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .results-header h2 {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .results-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        /* Table */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: var(--light);
+        }
+
+        th {
+            padding: 15px 20px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid var(--accent);
+        }
+
+        th:nth-child(3) {
+            text-align: right;
+        }
+
+        th:nth-child(4) {
+            text-align: center;
+            width: 100px;
+        }
+
+        td {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--light-gray);
+            vertical-align: middle;
+        }
+
+        tr:hover {
+            background: rgba(64,125,182,0.03);
+        }
+
+        td:nth-child(3) {
+            text-align: right;
+            font-weight: 600;
+            font-family: 'Consolas', monospace;
+        }
+
+        td:nth-child(4) {
+            text-align: center;
+        }
+
+        .amount-positive {
+            color: var(--success);
+        }
+
+        .amount-negative {
+            color: var(--danger);
+        }
+
+        /* Edit inputs */
+        .edit-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid var(--primary);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-family: inherit;
+        }
+
+        .edit-input:focus {
+            outline: none;
+            border-color: var(--secondary);
+            box-shadow: 0 0 0 3px rgba(188,208,54,0.2);
+        }
+
+        .edit-input.amount {
+            text-align: right;
+            width: 120px;
+        }
+
+        .edit-input.date {
+            width: 120px;
+        }
+
+        /* Summary */
+        .summary {
+            background: var(--light);
+            padding: 20px 25px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 40px;
+            flex-wrap: wrap;
+            border-top: 2px solid var(--accent);
+        }
+
+        .summary-item {
+            text-align: right;
+        }
+
+        .summary-item label {
+            font-size: 0.85rem;
+            color: var(--gray);
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .summary-item span {
+            font-size: 1.1rem;
+            font-weight: 700;
+            font-family: 'Consolas', monospace;
+        }
+
+        .summary-item.income span { color: var(--success); }
+        .summary-item.expense span { color: var(--danger); }
+        .summary-item.balance span { color: var(--primary); }
+
+        /* Alert */
+        .alert {
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .alert.show {
+            display: flex;
+        }
+
+        .alert-warning {
+            background: rgba(239,214,86,0.2);
+            border-left: 4px solid var(--accent);
+            color: #856404;
+        }
+
+        .alert-error {
+            background: rgba(220,53,69,0.1);
+            border-left: 4px solid var(--danger);
+            color: var(--danger);
+        }
+
+        .alert svg {
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        /* Instructions */
+        .instructions {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border-left: 4px solid var(--secondary);
+        }
+
+        .instructions h3 {
+            color: var(--primary);
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+            color: var(--gray);
+            line-height: 1.8;
+        }
+
+        .instructions li {
+            margin-bottom: 8px;
+        }
+
+        .instructions .note {
+            margin-top: 20px;
+            padding: 15px;
+            background: var(--light);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: var(--gray);
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 30px;
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+
+        footer a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            header .container {
+                justify-content: center;
+                text-align: center;
+            }
+
+            .upload-section {
+                padding: 25px;
+            }
+
+            .upload-area {
+                padding: 30px 20px;
+            }
+
+            .results-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .summary {
+                justify-content: space-between;
+                gap: 20px;
+            }
+
+            th, td {
+                padding: 10px 12px;
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="logo-section">
+                <h1>📊 Convertitore Estratti Conto</h1>
+                <p>Converti PDF bancari in CSV per la contabilità</p>
+                <div class="header-accent"></div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Upload Section -->
+        <section class="upload-section">
+            <div class="upload-area" id="dropZone">
+                <div class="upload-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                    </svg>
+                </div>
+                <h3>Trascina qui il PDF dell'estratto conto</h3>
+                <p>oppure clicca per selezionare il file</p>
+                <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Seleziona PDF
+                </button>
+                <input type="file" id="fileInput" accept=".pdf" onchange="handleFileSelect(event)">
+            </div>
+            
+            <div class="file-info" id="fileInfo">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                </svg>
+                <span id="fileName"></span>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Elaborazione del PDF in corso...</p>
+            </div>
+        </section>
+
+        <!-- Alert -->
+        <div class="alert alert-warning" id="alert">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+            <div id="alertMessage"></div>
+        </div>
+
+        <!-- Results Section -->
+        <section class="results-section" id="resultsSection">
+            <div class="results-header">
+                <h2>📋 Movimenti estratti: <span id="transactionCount">0</span></h2>
+                <div class="results-actions">
+                    <button class="btn btn-outline" onclick="addTransaction()" style="background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.3); color: white;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Aggiungi riga
+                    </button>
+                    <button class="btn btn-success" onclick="exportCSV()">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                        </svg>
+                        Esporta CSV
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 120px;">Data</th>
+                            <th>Descrizione</th>
+                            <th style="width: 140px;">Importo</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transactionsBody">
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="summary">
+                <div class="summary-item income">
+                    <label>Totale Entrate</label>
+                    <span id="totalIncome">€ 0,00</span>
+                </div>
+                <div class="summary-item expense">
+                    <label>Totale Uscite</label>
+                    <span id="totalExpense">€ 0,00</span>
+                </div>
+                <div class="summary-item balance">
+                    <label>Saldo</label>
+                    <span id="totalBalance">€ 0,00</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Instructions -->
+        <section class="instructions">
+            <h3>📖 Come funziona</h3>
+            <ol>
+                <li>Carica il PDF dell'estratto conto della banca (qualsiasi istituto)</li>
+                <li>L'applicazione estrae automaticamente i movimenti (data, descrizione, importo)</li>
+                <li>Controlla i dati e modificali se necessario cliccando sull'icona ✏️</li>
+                <li>Clicca <strong>"Esporta CSV"</strong> per scaricare il file pronto per l'import nel gestionale</li>
+            </ol>
+            <div class="note">
+                <strong>💡 Suggerimento:</strong> L'estrazione automatica funziona con la maggior parte degli estratti conto italiani. 
+                Se alcuni movimenti non vengono rilevati correttamente, puoi modificarli manualmente o aggiungerli con il pulsante "Aggiungi riga".
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Convertitore Estratti Conto &copy; 2025</p>
+    </footer>
+
+    <script>
+        // Initialize PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        let transactions = [];
+        let currentFileName = '';
+
+        // Drag and drop handlers
+        const dropZone = document.getElementById('dropZone');
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type === 'application/pdf') {
+                processFile(file);
+            } else {
+                showAlert('Per favore carica un file PDF valido', 'error');
+            }
+        });
+
+        dropZone.addEventListener('click', (e) => {
+            if (e.target.tagName !== 'BUTTON') {
+                document.getElementById('fileInput').click();
+            }
+        });
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                processFile(file);
+            }
+        }
+
+        async function processFile(file) {
+            currentFileName = file.name.replace('.pdf', '');
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileInfo').classList.add('show');
+            document.getElementById('loading').classList.add('show');
+            document.getElementById('resultsSection').classList.remove('show');
+            hideAlert();
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const text = await extractTextFromPDF(arrayBuffer);
+                transactions = parseTransactions(text);
+                
+                if (transactions.length === 0) {
+                    showAlert('Nessuna transazione trovata automaticamente. Il PDF potrebbe avere un formato non standard. Puoi aggiungere i movimenti manualmente.', 'warning');
+                }
+                
+                renderTransactions();
+                document.getElementById('resultsSection').classList.add('show');
+            } catch (error) {
+                showAlert('Errore durante l\'elaborazione del PDF: ' + error.message, 'error');
+            } finally {
+                document.getElementById('loading').classList.remove('show');
+            }
+        }
+
+        async function extractTextFromPDF(arrayBuffer) {
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            let fullText = '';
+            
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items.map(item => item.str).join(' ');
+                fullText += pageText + '\n';
+            }
+            
+            return fullText;
+        }
+
+        function parseTransactions(text) {
+            const lines = text.split(/\n/).filter(line => line.trim());
+            const results = [];
+            let id = 0;
+
+            // Date patterns
+            const datePatterns = [
+                /(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/g,
+                /(\d{1,2}\s+(?:gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)[a-z]*\s+\d{2,4})/gi,
+            ];
+
+            // Amount patterns
+            const amountPatterns = [
+                /([+-]?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2})\s*(?:€|EUR)?/g,
+                /(?:€|EUR)\s*([+-]?\s*\d{1,3}(?:[.,]\d{3})*[.,]\d{2})/g,
+            ];
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                
+                // Find date
+                let dateMatch = null;
+                for (const pattern of datePatterns) {
+                    pattern.lastIndex = 0;
+                    const match = pattern.exec(line);
+                    if (match) {
+                        dateMatch = match[1];
+                        break;
+                    }
+                }
+
+                // Find amount
+                let amountMatch = null;
+                let amountValue = null;
+                for (const pattern of amountPatterns) {
+                    pattern.lastIndex = 0;
+                    const matches = [...line.matchAll(pattern)];
+                    if (matches.length > 0) {
+                        const lastMatch = matches[matches.length - 1];
+                        amountMatch = lastMatch[1] || lastMatch[0];
+                        amountValue = amountMatch
+                            .replace(/\s/g, '')
+                            .replace(/€|EUR/g, '')
+                            .replace(/\./g, '')
+                            .replace(',', '.');
+                        break;
+                    }
+                }
+
+                if (dateMatch && amountMatch) {
+                    let description = line
+                        .replace(dateMatch, '')
+                        .replace(new RegExp(amountMatch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '')
+                        .replace(/€|EUR/gi, '')
+                        .replace(/\s+/g, ' ')
+                        .trim();
+
+                    description = description
+                        .replace(/\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}/g, '')
+                        .replace(/\d{1,3}(?:[.,]\d{3})*[.,]\d{2}/g, '')
+                        .replace(/\s+/g, ' ')
+                        .trim();
+
+                    if (description.length > 2) {
+                        results.push({
+                            id: id++,
+                            date: normalizeDate(dateMatch),
+                            description: description,
+                            amount: parseFloat(amountValue) || 0
+                        });
+                    }
+                }
+            }
+
+            return results;
+        }
+
+        function normalizeDate(dateStr) {
+            const cleanDate = dateStr.trim();
+            
+            const match = cleanDate.match(/(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/);
+            if (match) {
+                const day = match[1].padStart(2, '0');
+                const month = match[2].padStart(2, '0');
+                let year = match[3];
+                if (year.length === 2) {
+                    year = (parseInt(year) > 50 ? '19' : '20') + year;
+                }
+                return `${day}/${month}/${year}`;
+            }
+
+            const months = {
+                'gen': '01', 'feb': '02', 'mar': '03', 'apr': '04',
+                'mag': '05', 'giu': '06', 'lug': '07', 'ago': '08',
+                'set': '09', 'ott': '10', 'nov': '11', 'dic': '12'
+            };
+            const monthMatch = cleanDate.match(/(\d{1,2})\s+([a-z]{3})[a-z]*\s+(\d{2,4})/i);
+            if (monthMatch) {
+                const day = monthMatch[1].padStart(2, '0');
+                const month = months[monthMatch[2].toLowerCase()] || '01';
+                let year = monthMatch[3];
+                if (year.length === 2) {
+                    year = (parseInt(year) > 50 ? '19' : '20') + year;
+                }
+                return `${day}/${month}/${year}`;
+            }
+
+            return cleanDate;
+        }
+
+        function renderTransactions() {
+            const tbody = document.getElementById('transactionsBody');
+            tbody.innerHTML = '';
+
+            transactions.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.id = `row-${t.id}`;
+                tr.innerHTML = `
+                    <td>${t.date}</td>
+                    <td>${escapeHtml(t.description)}</td>
+                    <td class="${t.amount >= 0 ? 'amount-positive' : 'amount-negative'}">${formatAmount(t.amount)}</td>
+                    <td>
+                        <button class="btn-icon edit" onclick="editTransaction(${t.id})" title="Modifica">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                            </svg>
+                        </button>
+                        <button class="btn-icon delete" onclick="deleteTransaction(${t.id})" title="Elimina">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                            </svg>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            updateSummary();
+            document.getElementById('transactionCount').textContent = transactions.length;
+        }
+
+        function editTransaction(id) {
+            const t = transactions.find(t => t.id === id);
+            const tr = document.getElementById(`row-${id}`);
+            
+            tr.innerHTML = `
+                <td><input type="text" class="edit-input date" value="${t.date}" id="edit-date-${id}"></td>
+                <td><input type="text" class="edit-input" value="${escapeHtml(t.description)}" id="edit-desc-${id}"></td>
+                <td><input type="number" step="0.01" class="edit-input amount" value="${t.amount}" id="edit-amount-${id}"></td>
+                <td>
+                    <button class="btn-icon save" onclick="saveTransaction(${id})" title="Salva">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                        </svg>
+                    </button>
+                    <button class="btn-icon" onclick="renderTransactions()" title="Annulla">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </td>
+            `;
+        }
+
+        function saveTransaction(id) {
+            const t = transactions.find(t => t.id === id);
+            t.date = document.getElementById(`edit-date-${id}`).value;
+            t.description = document.getElementById(`edit-desc-${id}`).value;
+            t.amount = parseFloat(document.getElementById(`edit-amount-${id}`).value) || 0;
+            renderTransactions();
+        }
+
+        function deleteTransaction(id) {
+            if (confirm('Sei sicuro di voler eliminare questo movimento?')) {
+                transactions = transactions.filter(t => t.id !== id);
+                renderTransactions();
+            }
+        }
+
+        function addTransaction() {
+            const newId = transactions.length > 0 ? Math.max(...transactions.map(t => t.id)) + 1 : 0;
+            transactions.push({
+                id: newId,
+                date: '',
+                description: '',
+                amount: 0
+            });
+            renderTransactions();
+            editTransaction(newId);
+        }
+
+        function updateSummary() {
+            const income = transactions.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0);
+            const expense = transactions.filter(t => t.amount < 0).reduce((sum, t) => sum + t.amount, 0);
+            const balance = income + expense;
+
+            document.getElementById('totalIncome').textContent = formatAmount(income);
+            document.getElementById('totalExpense').textContent = formatAmount(expense);
+            document.getElementById('totalBalance').textContent = formatAmount(balance);
+        }
+
+        function formatAmount(amount) {
+            return new Intl.NumberFormat('it-IT', {
+                style: 'currency',
+                currency: 'EUR'
+            }).format(amount);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function exportCSV() {
+            if (transactions.length === 0) {
+                showAlert('Nessun movimento da esportare', 'warning');
+                return;
+            }
+
+            const headers = ['Data', 'Descrizione', 'Importo'];
+            const rows = transactions.map(t => [
+                t.date,
+                `"${t.description.replace(/"/g, '""')}"`,
+                t.amount.toFixed(2).replace('.', ',')
+            ]);
+
+            const csvContent = [
+                headers.join(';'),
+                ...rows.map(row => row.join(';'))
+            ].join('\n');
+
+            const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `movimenti_${currentFileName || 'estratto'}_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function showAlert(message, type = 'warning') {
+            const alert = document.getElementById('alert');
+            const alertMessage = document.getElementById('alertMessage');
+            alert.className = `alert alert-${type} show`;
+            alertMessage.textContent = message;
+        }
+
+        function hideAlert() {
+            document.getElementById('alert').classList.remove('show');
+        }
+    </script>
+</body>
+</html>
